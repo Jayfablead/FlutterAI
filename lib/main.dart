@@ -39,7 +39,7 @@ class _HomeState extends State<Home> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Flutter  AI"),
+        title: Text("Flutter AI",style: TextStyle(color: Theme.of(context).colorScheme.primary),),elevation: 01,
         centerTitle: true,
       ),
       body: const ChatScreen(),
