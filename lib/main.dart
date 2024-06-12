@@ -39,7 +39,11 @@ class _HomeState extends State<Home> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Flutter AI",style: TextStyle(color: Theme.of(context).colorScheme.primary),),elevation: 01,
+        title: Text(
+          "Flutter AI",
+          style: TextStyle(color: Theme.of(context).colorScheme.primary),
+        ),
+        elevation: 01,
         centerTitle: true,
       ),
       body: const ChatScreen(),
@@ -81,21 +85,23 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: hasApiKey
-                ? ListView.builder(
-                    controller: _scrollController,
-                    itemBuilder: (context, idx) {
-                      final content = _chat.history.toList()[idx];
-                      final text = content.parts
-                          .whereType<TextPart>()
-                          .map<String>((e) => e.text)
-                          .join('');
-                      return MessageWidget(
-                        text: text,
-                        isFromUser: content.role == 'user',
-                      );
-                    },
-                    itemCount: _chat.history.length,
-                  )
+                ? _chat.history.length == 0
+                    ? Center(child: Text('Start Asking Anything'))
+                    : ListView.builder(
+                        controller: _scrollController,
+                        itemBuilder: (context, idx) {
+                          final content = _chat.history.toList()[idx];
+                          final text = content.parts
+                              .whereType<TextPart>()
+                              .map<String>((e) => e.text)
+                              .join('');
+                          return MessageWidget(
+                            text: text,
+                            isFromUser: content.role == 'user',
+                          );
+                        },
+                        itemCount: _chat.history.length,
+                      )
                 : ListView(
                     children: const [
                       Text('No API key found. Please provide an API Key.'),
@@ -141,18 +147,38 @@ class _ChatScreenState extends State<ChatScreen> {
                 const SizedBox.square(
                   dimension: 15,
                 ),
-                if (!_loading)
-                  IconButton(
-                    onPressed: () async {
-                      _sendChatMessage(_textController.text);
-                    },
-                    icon: Icon(
-                      Icons.send,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  )
-                else
-                  const CircularProgressIndicator(),
+                //             Theme.of(context).colorScheme.primary
+                // async {
+                // _sendChatMessage(_textController.text);
+                // }
+
+                InkWell(
+                  onTap: _textController.text == ''
+                      ? () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Please Type Something'),
+                            ),
+                          );
+                        }
+                      : () async {
+                          _sendChatMessage(_textController.text);
+                        },
+                  child: Container(
+                    padding: EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(80),
+                        color: Theme.of(context).colorScheme.primary),
+                    child: !_loading
+                        ? Icon(
+                            Icons.send,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .secondaryContainer,
+                          )
+                        : CircularProgressIndicator(),
+                  ),
+                )
               ],
             ),
           ),
