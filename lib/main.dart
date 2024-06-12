@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 void main() async {
   await dotenv.load(fileName: ".env");
@@ -11,7 +12,6 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -19,7 +19,9 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.deepOrange, brightness: Brightness.dark),
+          seedColor: Colors.deepOrange,
+          brightness: Brightness.dark,
+        ),
         useMaterial3: true,
       ),
       home: const Home(),
@@ -43,7 +45,7 @@ class _HomeState extends State<Home> {
           "Flutter AI",
           style: TextStyle(color: Theme.of(context).colorScheme.primary),
         ),
-        elevation: 01,
+        elevation: 0,
         centerTitle: true,
       ),
       body: const ChatScreen(),
@@ -65,18 +67,44 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _loading = false;
 
+  stt.SpeechToText _speechToText = stt.SpeechToText();
+  bool _isListening = false;
+  String _voiceInput = '';
+
   @override
   void initState() {
-    _model =
-        GenerativeModel(model: "gemini-pro", apiKey: dotenv.env['API_KEY']!);
+    _model = GenerativeModel(model: "gemini-pro", apiKey: dotenv.env['API_KEY']!);
     _chat = _model.startChat();
     super.initState();
   }
 
+  void _listen() async {
+    if (!_isListening) {
+      bool available = await _speechToText.initialize(
+        onStatus: (val) => setState(() {
+          if (val == "done") {
+            _isListening = false;
+            _textController.text = _voiceInput;
+            _sendChatMessage(_voiceInput);
+          }
+        }),
+        onError: (val) => setState(() => _isListening = false),
+      );
+      if (available) {
+        setState(() => _isListening = true);
+        _speechToText.listen(onResult: (val) => setState(() {
+          _voiceInput = val.recognizedWords;
+        }));
+      }
+    } else {
+      setState(() => _isListening = false);
+      _speechToText.stop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    bool hasApiKey =
-        dotenv.env['API_KEY'] != null && dotenv.env['API_KEY']!.isNotEmpty;
+    bool hasApiKey = dotenv.env['API_KEY'] != null && dotenv.env['API_KEY']!.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Column(
@@ -85,7 +113,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: hasApiKey
-                ? _chat.history.length == 0
+                ? _chat.history.isEmpty
                 ? Center(child: Text('Start Asking Anything'))
                 : ListView.builder(
               controller: _scrollController,
@@ -115,6 +143,13 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             child: Row(
               children: [
+                IconButton(
+                  icon: Icon(
+                    _isListening ? Icons.mic : Icons.mic_none,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  onPressed: _listen,
+                ),
                 Expanded(
                   child: TextFormField(
                     controller: _textController,
@@ -139,7 +174,6 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                       ),
                     ),
-
                     onFieldSubmitted: (String value) {
                       _sendChatMessage(value);
                     },
@@ -149,26 +183,28 @@ class _ChatScreenState extends State<ChatScreen> {
                   dimension: 15,
                 ),
                 InkWell(
-                  onTap:  () async {
+                  onTap: () async {
                     _sendChatMessage(_textController.text);
                   },
-                  child: Container(height: 50,width: 50,
+                  child: Container(
+                    height: 50,
+                    width: 50,
                     padding: EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(80),
-                        color: Theme.of(context).colorScheme.primary),
+                      borderRadius: BorderRadius.circular(80),
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     child: !_loading
                         ? Icon(
                       Icons.send,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .secondaryContainer,
+                      color: Theme.of(context).colorScheme.secondaryContainer,
                     )
-                        : CircularProgressIndicator(color:Theme.of(context)
-                        .colorScheme
-                        .secondaryContainer ,),
+                        : CircularProgressIndicator(
+                      color: Theme.of(context).colorScheme.secondaryContainer,
+                    ),
                   ),
-                )
+                ),
+
               ],
             ),
           ),
@@ -214,7 +250,6 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     });
   }
-
 }
 
 class MessageWidget extends StatelessWidget {
@@ -230,8 +265,7 @@ class MessageWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment:
-      isFromUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+      mainAxisAlignment: isFromUser ? MainAxisAlignment.end : MainAxisAlignment.start,
       children: [
         Flexible(
           child: Container(
