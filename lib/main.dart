@@ -86,27 +86,27 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: hasApiKey
                 ? _chat.history.length == 0
-                    ? Center(child: Text('Start Asking Anything'))
-                    : ListView.builder(
-                        controller: _scrollController,
-                        itemBuilder: (context, idx) {
-                          final content = _chat.history.toList()[idx];
-                          final text = content.parts
-                              .whereType<TextPart>()
-                              .map<String>((e) => e.text)
-                              .join('');
-                          return MessageWidget(
-                            text: text,
-                            isFromUser: content.role == 'user',
-                          );
-                        },
-                        itemCount: _chat.history.length,
-                      )
+                ? Center(child: Text('Start Asking Anything'))
+                : ListView.builder(
+              controller: _scrollController,
+              itemBuilder: (context, idx) {
+                final content = _chat.history.toList()[idx];
+                final text = content.parts
+                    .whereType<TextPart>()
+                    .map<String>((e) => e.text)
+                    .join('');
+                return MessageWidget(
+                  text: text,
+                  isFromUser: content.role == 'user',
+                );
+              },
+              itemCount: _chat.history.length,
+            )
                 : ListView(
-                    children: const [
-                      Text('No API key found. Please provide an API Key.'),
-                    ],
-                  ),
+              children: const [
+                Text('No API key found. Please provide an API Key.'),
+              ],
+            ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -139,6 +139,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                       ),
                     ),
+
                     onFieldSubmitted: (String value) {
                       _sendChatMessage(value);
                     },
@@ -147,36 +148,25 @@ class _ChatScreenState extends State<ChatScreen> {
                 const SizedBox.square(
                   dimension: 15,
                 ),
-                //             Theme.of(context).colorScheme.primary
-                // async {
-                // _sendChatMessage(_textController.text);
-                // }
-
                 InkWell(
-                  onTap: _textController.text == ''
-                      ? () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Please Type Something'),
-                            ),
-                          );
-                        }
-                      : () async {
-                          _sendChatMessage(_textController.text);
-                        },
-                  child: Container(
+                  onTap:  () async {
+                    _sendChatMessage(_textController.text);
+                  },
+                  child: Container(height: 50,width: 50,
                     padding: EdgeInsets.all(10),
                     decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(80),
                         color: Theme.of(context).colorScheme.primary),
                     child: !_loading
                         ? Icon(
-                            Icons.send,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .secondaryContainer,
-                          )
-                        : CircularProgressIndicator(),
+                      Icons.send,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .secondaryContainer,
+                    )
+                        : CircularProgressIndicator(color:Theme.of(context)
+                        .colorScheme
+                        .secondaryContainer ,),
                   ),
                 )
               ],
@@ -188,6 +178,13 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendChatMessage(String message) async {
+    if (message.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please Type Something.')),
+      );
+      return;
+    }
+
     setState(() => _loading = true);
 
     try {
@@ -198,13 +195,26 @@ class _ChatScreenState extends State<ChatScreen> {
         return;
       }
       setState(() => _loading = false);
+      _scrollToEnd();
     } catch (e) {
       debugPrint(e.toString());
     } finally {
       _textController.clear();
       setState(() => _loading = false);
+      _scrollToEnd();
     }
   }
+
+  void _scrollToEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
 }
 
 class MessageWidget extends StatelessWidget {
@@ -221,7 +231,7 @@ class MessageWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment:
-          isFromUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+      isFromUser ? MainAxisAlignment.end : MainAxisAlignment.start,
       children: [
         Flexible(
           child: Container(
