@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -19,7 +20,7 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepOrange,
+          seedColor: Color(0xff3600c0),
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
@@ -73,7 +74,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void initState() {
-    _model = GenerativeModel(model: "gemini-pro", apiKey: dotenv.env['API_KEY']!);
+    _model =
+        GenerativeModel(model: "gemini-pro", apiKey: dotenv.env['API_KEY']!);
     _chat = _model.startChat();
     super.initState();
   }
@@ -84,17 +86,22 @@ class _ChatScreenState extends State<ChatScreen> {
         onStatus: (val) => setState(() {
           if (val == "done") {
             _isListening = false;
-            _textController.text = _voiceInput;
-            _sendChatMessage(_voiceInput);
+            if (_voiceInput.isNotEmpty) {
+              _textController.text = _voiceInput;
+              _sendChatMessage(_voiceInput);
+              FocusScope.of(context).unfocus();
+            }
+            _voiceInput = ''; // Clear the voice input after using it
           }
         }),
         onError: (val) => setState(() => _isListening = false),
       );
       if (available) {
         setState(() => _isListening = true);
-        _speechToText.listen(onResult: (val) => setState(() {
-          _voiceInput = val.recognizedWords;
-        }));
+        _speechToText.listen(
+            onResult: (val) => setState(() {
+                  _voiceInput = val.recognizedWords;
+                }));
       }
     } else {
       setState(() => _isListening = false);
@@ -104,7 +111,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool hasApiKey = dotenv.env['API_KEY'] != null && dotenv.env['API_KEY']!.isNotEmpty;
+    bool hasApiKey =
+        dotenv.env['API_KEY'] != null && dotenv.env['API_KEY']!.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Column(
@@ -114,27 +122,34 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: hasApiKey
                 ? _chat.history.isEmpty
-                ? Center(child: Text('Start Asking Anything'))
-                : ListView.builder(
-              controller: _scrollController,
-              itemBuilder: (context, idx) {
-                final content = _chat.history.toList()[idx];
-                final text = content.parts
-                    .whereType<TextPart>()
-                    .map<String>((e) => e.text)
-                    .join('');
-                return MessageWidget(
-                  text: text,
-                  isFromUser: content.role == 'user',
-                );
-              },
-              itemCount: _chat.history.length,
-            )
+                    ? Center(
+                        child: Text(
+                          'Start Asking Anything ...',
+                          style: TextStyle(
+                              fontSize: 16,
+                              color: Theme.of(context).colorScheme.primary),
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        itemBuilder: (context, idx) {
+                          final content = _chat.history.toList()[idx];
+                          final text = content.parts
+                              .whereType<TextPart>()
+                              .map<String>((e) => e.text)
+                              .join('');
+                          return MessageWidget(
+                            text: text,
+                            isFromUser: content.role == 'user',
+                          );
+                        },
+                        itemCount: _chat.history.length,
+                      )
                 : ListView(
-              children: const [
-                Text('No API key found. Please provide an API Key.'),
-              ],
-            ),
+                    children: const [
+                      Text('No API key found. Please provide an API Key.'),
+                    ],
+                  ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -143,41 +158,59 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             child: Row(
               children: [
-                IconButton(
-                  icon: Icon(
-                    _isListening ? Icons.mic : Icons.mic_none,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  onPressed: _listen,
+                InkWell(
+                  onTap: _listen,
+                  child: Container(
+                      height: 50,
+                      width: 50,
+                      padding: EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(80),
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      child: Icon(
+                        _isListening ? Icons.mic : Icons.mic_none,
+                        color: Theme.of(context).colorScheme.secondaryContainer,
+                      )),
+                ),
+                const SizedBox.square(
+                  dimension: 15,
                 ),
                 Expanded(
-                  child: TextFormField(
-                    controller: _textController,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.all(15),
-                      hintText: 'Enter a prompt...',
-                      border: OutlineInputBorder(
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(14),
+                  child: _isListening
+                      ? Center(
+                          child: Text(
+                          'Listening...',
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary),
+                        ))
+                      : TextFormField(
+                          controller: _textController,
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            contentPadding: const EdgeInsets.all(15),
+                            hintText: 'Enter a prompt...',
+                            border: OutlineInputBorder(
+                              borderRadius: const BorderRadius.all(
+                                Radius.circular(14),
+                              ),
+                              borderSide: BorderSide(
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: const BorderRadius.all(
+                                Radius.circular(14),
+                              ),
+                              borderSide: BorderSide(
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                            ),
+                          ),
+                          onFieldSubmitted: (String value) {
+                            _sendChatMessage(value);
+                          },
                         ),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.secondary,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(14),
-                        ),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.secondary,
-                        ),
-                      ),
-                    ),
-                    onFieldSubmitted: (String value) {
-                      _sendChatMessage(value);
-                    },
-                  ),
                 ),
                 const SizedBox.square(
                   dimension: 15,
@@ -189,6 +222,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: Container(
                     height: 50,
                     width: 50,
+                    alignment: Alignment.center,
                     padding: EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(80),
@@ -196,15 +230,18 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                     child: !_loading
                         ? Icon(
-                      Icons.send,
-                      color: Theme.of(context).colorScheme.secondaryContainer,
-                    )
+                            CupertinoIcons.paperplane_fill,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .secondaryContainer,
+                          )
                         : CircularProgressIndicator(
-                      color: Theme.of(context).colorScheme.secondaryContainer,
-                    ),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .secondaryContainer,
+                          ),
                   ),
                 ),
-
               ],
             ),
           ),
@@ -224,6 +261,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _loading = true);
 
     try {
+      FocusScope.of(context).unfocus();
       final response = await _chat.sendMessage(Content.text(message));
       final text = response.text;
       if (text == null) {
@@ -265,7 +303,8 @@ class MessageWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: isFromUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+      mainAxisAlignment:
+          isFromUser ? MainAxisAlignment.end : MainAxisAlignment.start,
       children: [
         Flexible(
           child: Container(
